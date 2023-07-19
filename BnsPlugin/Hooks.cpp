@@ -12,11 +12,11 @@ uint64_t focusUnfocusAddr;
 */
 void(__fastcall* oSetForegroundFpsLimit)(int64_t* arg1, int32_t arg2);
 void __fastcall hkSetForegroundFpsLimit(int64_t* arg1, int32_t arg2) {
+	focusUnfocusAddr = (int64_t)arg1;
 #ifdef _DEBUG
 	std::wcout << L"fps limits reset" << std::endl;
 #endif // _DEBUG
 	auto fpsLimit = arg2;
-
 	if (pluginConfig->ForegroundLimit > -1) {
 #ifdef _DEBUG
 		std::wcout << L"found config override foreground limit: " << pluginConfig->ForegroundLimit << std::endl;
@@ -60,11 +60,12 @@ bool _fastcall hkUiStateGame(int64_t* thisptr) {
 */
 void(__fastcall* oFocusUnfocus)(uint64_t* arg1, uint32_t arg2);
 void __fastcall hkFocusUnfocus(uint64_t* arg1, uint32_t focus) {
-#ifdef _DEBUG
-	std::wcout << L"focus: " << focus << std::endl;
-#endif // _DEBUG
 	focusState = focus;
 	focusUnfocusAddr = (int64_t)arg1;
 
+#ifdef _DEBUG
+	std::wcout << L"focus: " << focus << std::endl;
+#endif // _DEBUG
+	
 	return oFocusUnfocus(arg1, focus);
 }
