@@ -1,0 +1,18 @@
+[submodule "Template/deps/cx_fnv1a"]
+	path = Template/deps/cx_fnv1a
+	url = https://github.com/zeffy/cx_fnv1a
+[submodule "Template/deps/ntapi"]
+	path = Template/deps/ntapi
+	url = https://github.com/zeffy/ntapi
+[submodule "Template/deps/pe"]
+	path = Template/deps/pe
+	url = https://github.com/zeffy/pe
+[submodule "Template/deps/processhacker"]
+	path = Template/deps/processhacker
+	url = https://github.com/processhacker/processhacker
+[submodule "Template/deps/xorstr"]
+	path = Template/deps/xorstr
+	url = https://github.com/JustasMasiulis/xorstr
+[submodule "Template/deps/wil"]
+	path = Template/deps/wil
+	url = https://github.com/microsoft/wil
