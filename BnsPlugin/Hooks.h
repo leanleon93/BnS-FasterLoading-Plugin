@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+
 extern void(__fastcall* oSetForegroundFpsLimit)(int64_t* arg1, int32_t arg2);
 void __fastcall hkSetForegroundFpsLimit(int64_t* arg1, int32_t arg2);
 

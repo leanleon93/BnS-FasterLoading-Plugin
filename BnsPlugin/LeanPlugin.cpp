@@ -63,6 +63,12 @@ uintptr_t HookFunction(const char* pattern, int offset, FuncType& originalFuncti
 		DetourAttach(&(PVOID&)originalFunction, hookFunction);
 		return address;
 	}
+	else {
+#ifdef _DEBUG
+		printf("Address of %s is not found\n", debugName);
+		std::cout << std::endl;
+#endif // _DEBUG
+	}
 	return 0;
 }
 
@@ -77,9 +83,15 @@ void WINAPI InitDetours() {
 	DetourTransactionBegin();
 	DetourUpdateThread(NtCurrentThread());
 
-	HookFunction(xorstr_("40 57 48 83 EC 40 48 C7 44 24 20 FE FF FF FF 48 89 5C 24 50 48 89 74 24 58 0F B6 F2 48 8B F9 38 91"), 0, oFocusUnfocus, &hkFocusUnfocus, "oFocusUnfocus");
-	HookFunction(xorstr_("48 83 EC 28 80 3D E1 8A 66 04 00 75 08 39 91 44"), 0, oSetForegroundFpsLimit, &hkSetForegroundFpsLimit, "oSetForegroundFpsLimit");
-	HookFunction(xorstr_("48 89 4C 24 08 55 56 57 48 8B EC 48 83 EC 40 48 C7 45 F0 FE FF FF FF"), 0, oUiStateGame, &hkUiStateGame, "oUiStateGame");
+	HookFunction(xorstr_("40 57 48 83 EC 40 48 C7 44 24 20 FE FF FF FF 48 89 5C 24 50 48 89 74 24 58 0F B6 ?? 48 8B ?? 38 91"), 0, oFocusUnfocus, &hkFocusUnfocus, "oFocusUnfocus");
+	auto fpsAddr = HookFunction(xorstr_("48 83 EC 28 80 3D E1 8A 66 04 00 75 08 39 91 44"), 0, oSetForegroundFpsLimit, &hkSetForegroundFpsLimit, "oSetForegroundFpsLimit");
+	if (fpsAddr == 0) {
+		HookFunction(xorstr_("75 08 39 91 44 01 00 00 ?? ?? 8B C2"), -0x10, oSetForegroundFpsLimit, &hkSetForegroundFpsLimit, "oSetForegroundFpsLimit");
+	}
+	auto addr = HookFunction(xorstr_("48 85 D2 74 ?? 33 C0 48 85 C9 48 0F 45 C2 48"), -0x1C, oUiStateGame, &hkUiStateGame, "oUiStateGame");
+	if (addr == 0) {
+		HookFunction(xorstr_("48 8B 05 ?? ?? ?? ?? 48 85 C0 74 10 48 8B ?? ?? 00 00 00 48 85 C9 0F 85 ?? ?? ?? ?? 33 C0 C3 CC 40 56 57 41 56 48 83 EC ??"), 0x00, oUiStateGame, &hkUiStateGame, "oUiStateGame");
+	}
 
 
 	DetourTransactionCommit();
