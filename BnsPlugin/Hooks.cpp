@@ -3,7 +3,7 @@
 #include <iostream>
 
 extern PluginConfig* pluginConfig;
-int32_t focusState = 0; //game focused or not
+int32_t focusState = 1; //game focused or not
 uint64_t focusUnfocusAddr;
 
 /*
@@ -26,16 +26,22 @@ void __fastcall hkSetForegroundFpsLimit(int64_t* arg1, int32_t arg2) {
 	return oSetForegroundFpsLimit(arg1, fpsLimit);
 }
 
+// Overload the output operator (<<)
+std::ostream& operator<<(std::ostream& os, const World& world) {
+	os << "_activated: " << world._activated
+		<< ", _IsTerrainChanged: " << world._IsTerrainChanged
+		<< ", _isTransit: " << world._isTransit
+		<< ", _isEnterWorld: " << world._isEnterWorld
+		<< ", _isEnterZone: " << world._isEnterZone
+		<< ", _tryLeaveZone: " << world._tryLeaveZone
+		<< ", _leaveReason: " << static_cast<int>(world._leaveReason)
+		<< ", _worldId: " << world._worldId
+		<< ", _zoneId: " << world._zoneId
+		<< ", _geozoneId: " << world._geozoneId;
+	return os;
+}
 
-/*
-* Function that is called when a new map is loaded.
-* Fortunately called right at the start of a loadscreen.
-*/
-bool(_fastcall* oUiStateGame)(int64_t* thisptr);
-bool _fastcall hkUiStateGame(int64_t* thisptr) {
-#ifdef _DEBUG
-	std::wcout << L"loading screen start" << std::endl;
-#endif // _DEBUG
+void SetAndApplyUnlimitedFps() {
 	if (focusUnfocusAddr != 0) {
 		uint32_t* foregroundPtr = (uint32_t*)(focusUnfocusAddr + 0x144);
 		uint32_t* backgroundPtr = (uint32_t*)(focusUnfocusAddr + 0x148);
@@ -44,17 +50,38 @@ bool _fastcall hkUiStateGame(int64_t* thisptr) {
 		*backgroundPtr = 0;
 
 #ifdef _DEBUG
+		printf("Address of the foregroundFps limit: %p\n", (void*)foregroundPtr);
 		std::wcout << L"setting all fps limits to: " << *foregroundPtr << L" (unlimited)" << std::endl;
 #endif // _DEBUG
 
 		oFocusUnfocus((uint64_t*)focusUnfocusAddr, (focusState ^ 1));
 		oFocusUnfocus((uint64_t*)focusUnfocusAddr, focusState);
 	}
-	return oUiStateGame(thisptr);
+}
+
+bool inTransitState = false;
+/*
+* Used to check if the game is in transit state.
+*/
+World* (__fastcall* BNSClient_GetWorld)();
+World* __fastcall hkBNSClient_GetWorld() {
+	World* world = BNSClient_GetWorld();
+	if (world != nullptr) {
+		if (world->_isTransit != inTransitState) {
+			if (world->_isTransit) {
+				SetAndApplyUnlimitedFps();
+			}
+			inTransitState = world->_isTransit;
+#ifdef _DEBUG
+			std::cout << "World _isTransit toggled: " << world->_isTransit << std::endl;
+#endif // _DEBUG
+		}
+	}
+	return world;
 }
 
 /*
-* Function that is called when the game is focused or unfocused(click outside, minimize, alt - tab etc.)
+* Function that is called when the game is focused or unfocused(click outside, minimize, alt-tab etc.)
 * focus = 1 => game is now focused
 * focus = 0 => game is now unfocused
 */
@@ -66,6 +93,6 @@ void __fastcall hkFocusUnfocus(uint64_t* arg1, uint32_t focus) {
 #ifdef _DEBUG
 	std::wcout << L"focus: " << focus << std::endl;
 #endif // _DEBUG
-	
+
 	return oFocusUnfocus(arg1, focus);
 }

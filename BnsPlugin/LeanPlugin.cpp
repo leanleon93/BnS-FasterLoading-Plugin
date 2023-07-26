@@ -72,6 +72,15 @@ uintptr_t HookFunction(const char* pattern, int offset, FuncType& originalFuncti
 	return 0;
 }
 
+uintptr_t GetAddress(uintptr_t AddressOfCall, int index, int length)
+{
+	if (!AddressOfCall)
+		return 0;
+
+	long delta = *(long*)(AddressOfCall + index);
+	return (AddressOfCall + delta + length);
+}
+
 /// <summary>
 /// Setup function detours
 /// </summary>
@@ -89,10 +98,17 @@ void WINAPI InitDetours() {
 		HookFunction(xorstr_("75 08 39 91 44 01 00 00 ?? ?? 8B C2"), -0x10, oSetForegroundFpsLimit, &hkSetForegroundFpsLimit, "oSetForegroundFpsLimit");
 	}
 
-	auto uiStateGameAddr = HookFunction(xorstr_("48 89 4C 24 08 55 56 57 48 8B EC 48 83 EC 40 48 C7 45 F0 FE FF FF FF"), 0, oUiStateGame, &hkUiStateGame, "oUiStateGame");
-	if (uiStateGameAddr == 0) {
-		HookFunction(xorstr_("48 89 4C 24 08 55 57 41 56 48 8B EC 48 83 EC 40 48 C7 45 F0 FE FF FF FF 48 89 5C 24 70"), 0, oUiStateGame, &hkUiStateGame, "oUiStateGame");
+	auto result = std::search(data.begin(), data.end(), pattern_searcher(xorstr_("66 89 54 24 10 48 89 4C 24 08 57 48 81 EC 10 02 00 00 48 C7 84 24 B8 00 00 00 FE FF FF FF")));
+	if (result != data.end()) {
+		auto address = GetAddress(((uintptr_t)&result[0] + 0x38), 1, 5);
+#ifdef _DEBUG
+		printf("Address of %s is %p\n", "BNSClient_GetWorld", (void*)address);
+		std::cout << std::endl;
+#endif // _DEBUG
+		BNSClient_GetWorld = module->rva_to<std::remove_pointer_t<decltype(BNSClient_GetWorld)>>(address - handle);
+		DetourAttach(&(PVOID&)BNSClient_GetWorld, &hkBNSClient_GetWorld);
 	}
+
 
 	DetourTransactionCommit();
 }
