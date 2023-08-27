@@ -105,9 +105,15 @@ World* __fastcall hkBNSClient_GetWorld() {
 				SetAndApplyUnlimitedFps();
 			}
 			inTransitState = world->_isTransit;
-			prevGeoZoneId = world->_geozoneId;
 #ifdef _DEBUG
 			std::cout << "World _isTransit toggled: " << world->_isTransit << std::endl;
+#endif // _DEBUG
+		}
+
+		if (world->_geozoneId != prevGeoZoneId) {
+			prevGeoZoneId = world->_geozoneId;
+#ifdef _DEBUG
+			std::cout << "Geozone changed: " << world->_geozoneId << std::endl;
 #endif // _DEBUG
 		}
 
