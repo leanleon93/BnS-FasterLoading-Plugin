@@ -1,4 +1,4 @@
-#include "Hooks.h";
+#include "Hooks.h"
 #include "PluginConfig.h"
 #include <iostream>
 
@@ -26,6 +26,7 @@ void __fastcall hkSetForegroundFpsLimit(int64_t* arg1, int32_t arg2) {
 	return oSetForegroundFpsLimit(arg1, fpsLimit);
 }
 
+#ifdef _DEBUG
 // Overload the output operator (<<)
 std::ostream& operator<<(std::ostream& os, const World& world) {
 	os << "_activated: " << world._activated
@@ -40,6 +41,26 @@ std::ostream& operator<<(std::ostream& os, const World& world) {
 		<< ", _geozoneId: " << world._geozoneId;
 	return os;
 }
+
+bool operator==(const World& lhs, const World& rhs) {
+	return
+		lhs._activated == rhs._activated &&
+		lhs._IsTerrainChanged == rhs._IsTerrainChanged &&
+		lhs._isTransit == rhs._isTransit &&
+		lhs._isEnterWorld == rhs._isEnterWorld &&
+		lhs._isEnterZone == rhs._isEnterZone &&
+		lhs._tryLeaveZone == rhs._tryLeaveZone &&
+		lhs._leaveReason == rhs._leaveReason &&
+		lhs._worldId == rhs._worldId &&
+		lhs._zoneId == rhs._zoneId &&
+		lhs._geozoneId == rhs._geozoneId;
+}
+
+bool operator!=(const World& lhs, const World& rhs) {
+	return !(lhs == rhs);
+}
+#endif // _DEBUG
+
 
 void SetAndApplyUnlimitedFps() {
 	if (focusUnfocusAddr != 0) {
@@ -59,7 +80,16 @@ void SetAndApplyUnlimitedFps() {
 	}
 }
 
-bool inTransitState = false;
+
+static int prevGeoZoneId = -1;
+static bool inTransitState = false;
+
+#ifdef _DEBUG
+static World* prevWorld = nullptr;
+#endif // _DEBUG
+
+
+
 /*
 * Used to check if the game is in transit state.
 */
@@ -67,15 +97,35 @@ World* (__fastcall* BNSClient_GetWorld)();
 World* __fastcall hkBNSClient_GetWorld() {
 	World* world = BNSClient_GetWorld();
 	if (world != nullptr) {
-		if (world->_isTransit != inTransitState) {
+
+		//if transit state changed or we are leaving zone 0 (f8, char select)
+		//cause zone 0 is always in transit state
+		if (world->_isTransit != inTransitState || (prevGeoZoneId == 0 && world->_geozoneId != prevGeoZoneId)) {
 			if (world->_isTransit) {
 				SetAndApplyUnlimitedFps();
 			}
 			inTransitState = world->_isTransit;
+			prevGeoZoneId = world->_geozoneId;
 #ifdef _DEBUG
 			std::cout << "World _isTransit toggled: " << world->_isTransit << std::endl;
 #endif // _DEBUG
 		}
+
+#ifdef _DEBUG
+		if (prevWorld && world) {
+			if (*prevWorld != *world) {
+				std::cout << "World: " << *world << std::endl;
+				*prevWorld = *world;
+			}
+		}
+		else {
+			std::cout << "World: " << *world << std::endl;
+			if (prevWorld == nullptr)
+				prevWorld = new World();
+			*prevWorld = *world;
+		}
+#endif // _DEBUG
+
 	}
 	return world;
 }

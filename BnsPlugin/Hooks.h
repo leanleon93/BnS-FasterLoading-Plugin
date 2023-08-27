@@ -25,7 +25,11 @@ struct World
 	int _geozoneId;
 };
 
+#ifdef _DEBUG
 std::ostream& operator<<(std::ostream& os, const World& world);
+bool operator== (const World& lhs, const World& rhs);
+bool operator!= (const World& lhs, const World& rhs);
+#endif // _DEBUG
 
 extern World* (__fastcall* BNSClient_GetWorld)();
 World* __fastcall hkBNSClient_GetWorld();

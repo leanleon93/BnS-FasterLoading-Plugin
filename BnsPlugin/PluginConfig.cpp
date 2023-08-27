@@ -1,6 +1,6 @@
 #include "PluginConfig.h"
 #include "SimpleIni.h"
-#include "xorstr.hpp";
+#include "xorstr.hpp"
 #include <filesystem>
 #include <iostream>
 
