@@ -61,7 +61,7 @@ struct Version
 
     constexpr bool operator!=(const Version& other) const noexcept
     {
-        return !(version == other);
+        return !(*this == other);
     }
 
     constexpr auto operator<=>(const Version& other) const noexcept
