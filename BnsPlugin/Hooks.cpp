@@ -61,25 +61,46 @@ bool operator!=(const World& lhs, const World& rhs) {
 }
 #endif // _DEBUG
 
-
-void SetAndApplyUnlimitedFps() {
+static void SetAndApplyFpsLimits(uint32_t limit, bool unfocus) {
 	if (focusUnfocusAddr != 0) {
-		uint32_t* foregroundPtr = (uint32_t*)(focusUnfocusAddr + 0x144);
-		uint32_t* backgroundPtr = (uint32_t*)(focusUnfocusAddr + 0x148);
+		auto* foregroundPtr = (uint32_t*)(focusUnfocusAddr + 0x144);
+		auto* backgroundPtr = (uint32_t*)(focusUnfocusAddr + 0x148);
 
-		*foregroundPtr = 0;
-		*backgroundPtr = 0;
-
-#ifdef _DEBUG
-		printf("Address of the foregroundFps limit: %p\n", (void*)foregroundPtr);
-		std::wcout << L"setting all fps limits to: " << *foregroundPtr << L" (unlimited)" << std::endl;
-#endif // _DEBUG
+		*foregroundPtr = limit;
+		*backgroundPtr = limit;
 
 		oFocusUnfocus((uint64_t*)focusUnfocusAddr, (focusState ^ 1));
 		oFocusUnfocus((uint64_t*)focusUnfocusAddr, focusState);
+		if (unfocus) {
+			oFocusUnfocus((uint64_t*)focusUnfocusAddr, false);
+		}
+#ifdef _DEBUG
+		printf("Address of the foregroundFps limit: %p\n", (void*)foregroundPtr);
+		std::wcout << L"setting all fps limits to: " << *foregroundPtr << std::endl;
+#endif // _DEBUG
 	}
 }
 
+static void SetAndApplyFpsLimits(uint32_t limit) {
+	SetAndApplyFpsLimits(limit, false);
+}
+
+static void SetAndApplyLowFps() {
+	SetAndApplyFpsLimits(5, true);
+}
+
+static void SetAndApplyUnlimitedFps() {
+	SetAndApplyFpsLimits(0);
+}
+
+static void SetInTransitFps(const World* world) {
+	if (world->_leaveReason == 1 && world->_geozoneId == 0) {
+		SetAndApplyLowFps();
+	}
+	else {
+		SetAndApplyUnlimitedFps();
+	}
+}
 
 static int prevGeoZoneId = -1;
 static bool inTransitState = false;
@@ -100,9 +121,15 @@ World* __fastcall hkBNSClient_GetWorld() {
 
 		//if transit state changed or we are leaving zone 0 (f8, char select)
 		//cause zone 0 is always in transit state
-		if (world->_isTransit != inTransitState || (prevGeoZoneId == 0 && world->_geozoneId != prevGeoZoneId)) {
+		if ((world->_isTransit != inTransitState || world->_geozoneId != prevGeoZoneId) && world->_geozoneId == 0 && (world->_leaveReason == 1 || world->_leaveReason == 2)) {
+			SetAndApplyLowFps();
+
+			inTransitState = world->_isTransit;
+		}
+		else if (world->_isTransit != inTransitState || (prevGeoZoneId == 0 && world->_geozoneId != prevGeoZoneId)) {
+
 			if (world->_isTransit) {
-				SetAndApplyUnlimitedFps();
+				SetInTransitFps(world);
 			}
 			inTransitState = world->_isTransit;
 #ifdef _DEBUG
