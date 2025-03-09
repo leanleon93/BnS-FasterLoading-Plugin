@@ -120,22 +120,12 @@ void WINAPI InitDetours() {
 	DetourTransactionBegin();
 	DetourUpdateThread(NtCurrentThread());
 
-	HookFunction(xorstr_("40 57 48 83 EC 40 48 C7 44 24 20 FE FF FF FF 48 89 5C 24 50 48 89 74 24 58 0F B6 ?? 48 8B ?? 38 91"), 0, oFocusUnfocus, &hkFocusUnfocus, "oFocusUnfocus");
+	HookFunction(xorstr_("48 89 5C 24 08 48 89 74 24 10 57 48 83 EC 30 0F B6 FA 48 8B D9"), 0, oFocusUnfocus, &hkFocusUnfocus, "oFocusUnfocus");
 	auto fpsAddr = HookFunction(xorstr_("48 83 EC 28 80 3D E1 8A 66 04 00 75 08 39 91 44"), 0, oSetForegroundFpsLimit, &hkSetForegroundFpsLimit, "oSetForegroundFpsLimit");
 	if (fpsAddr == 0) {
 		HookFunction(xorstr_("75 08 39 91 44 01 00 00 ?? ?? 8B ?? ?? ?? ?? ?? 85 C0"), -0x10, oSetForegroundFpsLimit, &hkSetForegroundFpsLimit, "oSetForegroundFpsLimit");
 	}
-
-	auto result = std::search(data.begin(), data.end(), pattern_searcher(xorstr_("66 89 54 24 10 48 89 4C 24 08 57 48 81 EC 10 02 00 00 48 C7 84 24 B8 00 00 00 FE FF FF FF")));
-	if (result != data.end()) {
-		auto address = GetAddress(((uintptr_t)&result[0] + 0x38), 1, 5);
-#ifdef _DEBUG
-		printf("Address of %s is %p\n", "BNSClient_GetWorld", (void*)address);
-		std::cout << std::endl;
-#endif // _DEBUG
-		BNSClient_GetWorld = module->rva_to<std::remove_pointer_t<decltype(BNSClient_GetWorld)>>(address - handle);
-		DetourAttach(&(PVOID&)BNSClient_GetWorld, &hkBNSClient_GetWorld);
-	}
+	HookFunction(xorstr_("48 8B 05 ?? ?? ?? ?? 48 85 C0 74 ?? 48 8B 80 ?? ?? ?? ?? C3 C3 CC CC CC CC CC CC CC CC CC CC CC 48 8B 05"), 0x00, BNSClient_GetWorld, &hkBNSClient_GetWorld, "BNSClient_GetWorld");
 
 	PDETOUR_TRAMPOLINE lpTrampolineData = {}; //Datas to store information about hooking
 	auto sStorageFix = std::search(data.begin(), data.end(), pattern_searcher(xorstr_("4C 8B 0E 48 8B CE 44 0F B6 80 32 03 00 00 8B 97 D4 4F 00 00 41 FF 91 88 01 00 00 8B 97 D4 4F 00 00 48 8B CF")));
