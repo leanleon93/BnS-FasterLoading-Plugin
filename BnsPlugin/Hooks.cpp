@@ -14,6 +14,11 @@ void(__fastcall* oSetForegroundFpsLimit)(int64_t* arg1, int32_t arg2);
 void __fastcall hkSetForegroundFpsLimit(int64_t* arg1, int32_t arg2) {
 	focusUnfocusAddr = (int64_t)arg1;
 #ifdef _DEBUG
+	auto foregroundPtr = (uint32_t*)(focusUnfocusAddr + 0x144);
+	printf("Address of the foregroundFps limit: %p\n", (void*)foregroundPtr);
+	std::wcout << L"setting all fps limits to: " << *foregroundPtr << std::endl;
+#endif // _DEBUG
+#ifdef _DEBUG
 	std::wcout << L"fps limits reset" << std::endl;
 #endif // _DEBUG
 	auto fpsLimit = arg2;
