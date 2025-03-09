@@ -98,15 +98,6 @@ static void SetAndApplyUnlimitedFps() {
 	SetAndApplyFpsLimits(0);
 }
 
-static void SetInTransitFps(const World* world) {
-	if (world->_leaveReason == 1 && world->_geozoneId == 0) {
-		SetAndApplyLowFps();
-	}
-	else {
-		SetAndApplyUnlimitedFps();
-	}
-}
-
 static int prevGeoZoneId = -1;
 static bool inTransitState = false;
 
@@ -126,22 +117,15 @@ World* __fastcall hkBNSClient_GetWorld() {
 
 		//if transit state changed or we are leaving zone 0 (f8, char select)
 		//cause zone 0 is always in transit state
-		if ((world->_isTransit != inTransitState || world->_geozoneId != prevGeoZoneId) && world->_geozoneId == 0 && (world->_leaveReason == 1 || world->_leaveReason == 2)) {
-			SetAndApplyLowFps();
-
-			inTransitState = world->_isTransit;
-		}
-		else if (world->_isTransit != inTransitState || (prevGeoZoneId == 0 && world->_geozoneId != prevGeoZoneId)) {
-
+		if (world->_isTransit != inTransitState || (prevGeoZoneId == 0 && world->_geozoneId != prevGeoZoneId)) {
 			if (world->_isTransit) {
-				SetInTransitFps(world);
+				SetAndApplyUnlimitedFps();
 			}
 			inTransitState = world->_isTransit;
 #ifdef _DEBUG
 			std::cout << "World _isTransit toggled: " << world->_isTransit << std::endl;
 #endif // _DEBUG
 		}
-
 		if (world->_geozoneId != prevGeoZoneId) {
 			prevGeoZoneId = world->_geozoneId;
 #ifdef _DEBUG
