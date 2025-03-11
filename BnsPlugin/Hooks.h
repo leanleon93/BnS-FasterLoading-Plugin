@@ -5,9 +5,6 @@
 extern void(__fastcall* oSetForegroundFpsLimit)(int64_t* arg1, int32_t arg2);
 void __fastcall hkSetForegroundFpsLimit(int64_t* arg1, int32_t arg2);
 
-extern void(__fastcall* oFocusUnfocus)(uint64_t* arg1, uint32_t arg2);
-void __fastcall hkFocusUnfocus(uint64_t* arg1, uint32_t arg2);
-
 class World {
 public:
 	char unknown_0[0x50];
@@ -34,12 +31,3 @@ public:
 	int _jackpotFaction2Score;
 	__int32 _keyboardModeConvertedResult;
 };
-
-#ifdef _DEBUG
-std::ostream& operator<<(std::ostream& os, const World& world);
-bool operator== (const World& lhs, const World& rhs);
-bool operator!= (const World& lhs, const World& rhs);
-#endif // _DEBUG
-
-extern World* (__fastcall* BNSClient_GetWorld)();
-World* __fastcall hkBNSClient_GetWorld();

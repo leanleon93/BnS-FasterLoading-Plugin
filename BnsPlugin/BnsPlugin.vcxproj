@@ -143,7 +143,7 @@
     <IntDir>$(SolutionDir)obj\$(ProjectName)\$(Configuration)$(PlatformShortName.ToUpper())\</IntDir>
     <GenerateManifest>false</GenerateManifest>
     <EmbedManifest>false</EmbedManifest>
-    <TargetName>FasterLoading</TargetName>
+    <TargetName>FpsUnlimiter</TargetName>
   </PropertyGroup>
   <PropertyGroup Label="Vcpkg">
     <VcpkgEnableManifest>false</VcpkgEnableManifest>
@@ -366,11 +366,6 @@
     <ClInclude Include="LeanPlugin.h" />
     <ClInclude Include="PluginConfig.h" />
     <ClInclude Include="versioninfo.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <MASM Include="StorageFix.asm">
-      <FileType>Document</FileType>
-    </MASM>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
