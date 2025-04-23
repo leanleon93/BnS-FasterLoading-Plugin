@@ -125,26 +125,8 @@ void WINAPI InitDetours() {
 	if (fpsAddr == 0) {
 		HookFunction(xorstr_("75 08 39 91 44 01 00 00 ?? ?? 8B ?? ?? ?? ?? ?? 85 C0"), -0x10, oSetForegroundFpsLimit, &hkSetForegroundFpsLimit, "oSetForegroundFpsLimit");
 	}
-	HookFunction(xorstr_("48 8B 05 ?? ?? ?? ?? 48 85 C0 74 ?? 48 8B 80 ?? ?? ?? ?? C3 C3 CC CC CC CC CC CC CC CC CC CC CC 48 8B 05"), 0x00, BNSClient_GetWorld, &hkBNSClient_GetWorld, "BNSClient_GetWorld");
-
-	PDETOUR_TRAMPOLINE lpTrampolineData = {}; //Datas to store information about hooking
-	auto sStorageFix = std::search(data.begin(), data.end(), pattern_searcher(xorstr_("4C 8B 0E 48 8B CE 44 0F B6 80 32 03 00 00 8B 97 D4 4F 00 00 41 FF 91 88 01 00 00 8B 97 D4 4F 00 00 48 8B CF")));
-	if (sStorageFix != data.end()) {
-		uintptr_t aStorageFix = (uintptr_t)((uintptr_t)&sStorageFix[0] - 0x0E);
-		ogAddress = (*(int32_t*)(aStorageFix + 1)) + aStorageFix + 5;
-#ifdef _DEBUG
-		printf("Address of aStorageFix is %p\n", (void*)aStorageFix);
-		printf("Address of ogAddress in %p\n", (void*)ogAddress);
-		std::cout << std::endl;
-#endif // _DEBUG
-		DetourAttachEx(&(PVOID&)aStorageFix, (PVOID)&hkStorageFix, &lpTrampolineData, nullptr, nullptr); //Use DetourAtttachEx to retrieve information about the hook
-	}
-
+	HookFunction(xorstr_("?? 48 85 C0 74 ?? 48 8B 80 ?? ?? ?? ?? C3 C3 CC CC CC CC CC CC CC CC CC CC CC 48 8B 05"), -0x06, BNSClient_GetWorld, &hkBNSClient_GetWorld, "BNSClient_GetWorld");
 	DetourTransactionCommit();
-
-	const auto lpDetourInfo = (DETOUR_INFO*)lpTrampolineData;
-	if (lpDetourInfo != nullptr)
-		lpRemain = lpDetourInfo->pbRemain; //Retrieve the address to jump back the original function
 }
 
 
