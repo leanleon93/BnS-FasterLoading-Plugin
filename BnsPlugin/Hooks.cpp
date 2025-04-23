@@ -89,14 +89,23 @@ static void SetAndApplyFpsLimits(uint32_t limit, bool unfocus) {
 static void SetAndApplyFpsLimits(uint32_t limit) {
 	SetAndApplyFpsLimits(limit, false);
 }
-
-static void SetAndApplyLowFps() {
-	SetAndApplyFpsLimits(5, true);
-}
-
 static void SetAndApplyUnlimitedFps() {
 	SetAndApplyFpsLimits(0);
 }
+
+#ifdef _BNSLIVE 
+static void SetAndApplyLowFps() {
+	SetAndApplyFpsLimits(5, true);
+}
+static void SetInTransitFps(const World* world) {
+	if (world->_leaveReason == 1 && world->_geozoneId == 0) {
+		SetAndApplyLowFps();
+	}
+	else {
+		SetAndApplyUnlimitedFps();
+	}
+}
+#endif
 
 static int prevGeoZoneId = -1;
 static bool inTransitState = false;
@@ -104,7 +113,6 @@ static bool inTransitState = false;
 #ifdef _DEBUG
 static World* prevWorld = nullptr;
 #endif // _DEBUG
-
 
 
 /*
@@ -117,10 +125,21 @@ World* __fastcall hkBNSClient_GetWorld() {
 
 		//if transit state changed or we are leaving zone 0 (f8, char select)
 		//cause zone 0 is always in transit state
+#ifdef _BNSLIVE
+		if ((world->_isTransit != inTransitState || world->_geozoneId != prevGeoZoneId) && world->_geozoneId == 0 && (world->_leaveReason == 1 || world->_leaveReason == 2)) {
+			SetAndApplyLowFps();
+			inTransitState = world->_isTransit;
+		}
+		else if (world->_isTransit != inTransitState || (prevGeoZoneId == 0 && world->_geozoneId != prevGeoZoneId)) {
+			if (world->_isTransit) {
+				SetInTransitFps(world);
+			}
+#else
 		if (world->_isTransit != inTransitState || (prevGeoZoneId == 0 && world->_geozoneId != prevGeoZoneId)) {
 			if (world->_isTransit) {
 				SetAndApplyUnlimitedFps();
 			}
+#endif
 			inTransitState = world->_isTransit;
 #ifdef _DEBUG
 			std::cout << "World _isTransit toggled: " << world->_isTransit << std::endl;
@@ -157,8 +176,8 @@ World* __fastcall hkBNSClient_GetWorld() {
 * focus = 1 => game is now focused
 * focus = 0 => game is now unfocused
 */
-void(__fastcall* oFocusUnfocus)(uint64_t* arg1, uint32_t arg2);
-void __fastcall hkFocusUnfocus(uint64_t* arg1, uint32_t focus) {
+void(__fastcall * oFocusUnfocus)(uint64_t * arg1, uint32_t arg2);
+void __fastcall hkFocusUnfocus(uint64_t * arg1, uint32_t focus) {
 	focusState = focus;
 	focusUnfocusAddr = (int64_t)arg1;
 
