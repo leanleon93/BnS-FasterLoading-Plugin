@@ -41,8 +41,6 @@ gsl::span<uint8_t> data;
 pe::module* module;
 uintptr_t handle;
 
-PluginConfig* pluginConfig;
-
 /// <summary>
 /// Setup memory scanner
 /// </summary>
@@ -64,8 +62,46 @@ void WINAPI ScannerSetup() {
 /// Setup config values from fps.ini
 /// </summary>
 /// <returns></returns>
-void WINAPI InitConfigValues() {
-	pluginConfig = new PluginConfig();
+static void WINAPI InitConfigValues() {
+	g_PluginConfig.ReloadFromConfig();
+}
+
+_AddInstantNotification oAddInstantNotification;
+
+/// <summary>
+/// Setup BnS messaging to send chat or notification messages in game.
+/// From Tonic
+/// </summary>
+/// <returns></returns>
+static void WINAPI InitMessaging() {
+#ifdef _DEBUG
+	std::cout << "InitMessaging" << std::endl;
+#endif // _DEBUG
+
+#ifdef _DEBUG
+	std::cout << "Searching AddInstantNotification" << std::endl;
+#endif // _DEBUG
+	// Used for sending notifications about certain actions
+	bool diffPattern = false;
+	auto sAddNotif = std::search(data.begin(), data.end(), pattern_searcher(xorstr_("45 33 DB 41 8D 42 ?? 3C 02 BB 05 00 00 00 41 0F 47 DB")));
+	if (sAddNotif == data.end()) {
+		// Old compiler stuff (NAEU CLIENT)
+		diffPattern = true;
+		sAddNotif = std::search(data.begin(), data.end(), pattern_searcher(xorstr_("33 FF 80 BC 24 80 00 00 00 01 75 05")));
+	}
+
+	if (sAddNotif != data.end()) {
+		oAddInstantNotification = module->rva_to<std::remove_pointer_t<decltype(oAddInstantNotification)>>((uintptr_t)&sAddNotif[0] - (diffPattern ? 0x13 : 0x68) - handle);
+	}
+
+#ifdef _DEBUG
+	std::cout << "Searching Done" << std::endl;
+#endif // _DEBUG
+
+#ifdef _DEBUG
+	printf("Address of AddInstantNotification is %p\n", (void*)oAddInstantNotification);
+	std::cout << std::endl;
+#endif // _DEBUG
 }
 
 /// <summary>
@@ -100,15 +136,6 @@ uintptr_t HookFunction(const char* pattern, int offset, FuncType& originalFuncti
 	return 0;
 }
 
-uintptr_t GetAddress(uintptr_t AddressOfCall, int index, int length)
-{
-	if (!AddressOfCall)
-		return 0;
-
-	long delta = *(long*)(AddressOfCall + index);
-	return (AddressOfCall + delta + length);
-}
-
 /// <summary>
 /// Setup function detours
 /// </summary>
@@ -120,6 +147,7 @@ void WINAPI InitDetours() {
 	DetourTransactionBegin();
 	DetourUpdateThread(NtCurrentThread());
 
+	HookFunction(xorstr_("48 85 D2 0F 84 ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 8B F8 48 85 C0 0F 84 ?? ?? ?? ?? 4C 8B 03"), -0x15, oBUIWorld_ProcessEvent, &hkBUIWorld_ProcessEvent, "aBUIWorld_ProcessEvent");
 	HookFunction(xorstr_("48 89 5C 24 08 48 89 74 24 10 57 48 83 EC 30 0F B6 FA 48 8B D9"), 0, oFocusUnfocus, &hkFocusUnfocus, "oFocusUnfocus");
 	auto fpsAddr = HookFunction(xorstr_("48 83 EC 28 80 3D E1 8A 66 04 00 75 08 39 91 44"), 0, oSetForegroundFpsLimit, &hkSetForegroundFpsLimit, "oSetForegroundFpsLimit");
 	if (fpsAddr == 0) {
@@ -134,6 +162,7 @@ static void WINAPI LeanPlugin_Init()
 {
 	InitConfigValues();
 	ScannerSetup();
+	InitMessaging();
 	InitDetours();
 }
 
