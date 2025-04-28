@@ -2,45 +2,61 @@
 #include "SimpleIni.h"
 #include "xorstr.hpp"
 #include <filesystem>
+#ifdef _DEBUG
 #include <iostream>
+#endif // _DEBUG
+
+PluginConfig g_PluginConfig;
 
 PluginConfig::PluginConfig()
 {
-	ForegroundLimit = -1;
-	ReloadFromConfig();
+	Initialize();
 }
 
-//Ini file is fully optional and ignored if not exists
-
-//Ini name: fps.ini in plugins folder
-
-//Ini format
-// [FPS]
-// Foreground = x
-
-/// <summary>
-/// Loads config ini value to force overwrite foreground fps limit.
-/// </summary>
-void PluginConfig::ReloadFromConfig()
-{
+void PluginConfig::Initialize() {
 	WCHAR fullpath[MAX_PATH];
-	CSimpleIniA hotkeys;
-	hotkeys.SetUnicode();
-	GetModuleFileNameW(NULL, fullpath, MAX_PATH);
+	GetModuleFileNameW(nullptr, fullpath, MAX_PATH);
 	std::filesystem::path base(fullpath);
 	std::wstring inipath(base.parent_path());
-	inipath += xorstr_(L"/plugins/fps.ini");
-	const wchar_t* fullinipath = inipath.c_str();
+	inipath += L"/plugins/";
+	inipath += ConfigFileName; // Use the compile-time constant
+	ConfigPath = inipath;
 #ifdef _DEBUG
-	std::wcout << fullinipath << std::endl;
+	std::wcout << ConfigPath << std::endl;
 #endif // _DEBUG
+}
 
-	auto error = hotkeys.LoadFile(fullinipath);
-	if (error == SI_OK) {
-		// File loaded successfully
-		if (hotkeys.GetValue("FPS", "Foreground"))
-		{
-			ForegroundLimit = std::stoi(hotkeys.GetValue("FPS", "Foreground"));
-		}
+void PluginConfig::ReloadFromConfig()
+{
+	CSimpleIniA configIni;
+	configIni.SetUnicode();
+	SI_Error rc = configIni.LoadFile(ConfigPath.c_str());
+	if (rc < 0) {
+#ifdef _DEBUG
+		printf("Configuration file not found or could not be loaded: %ls\n", ConfigPath.c_str());
+#endif // _DEBUG
+		Loaded = false;
+		return;
 	}
+	if (const char* value = configIni.GetValue("FPS", "Foreground")) {
+		ForegroundLimit = std::stoi(value);
+	}
+	if (const char* value = configIni.GetValue("FPS", "Charselect")) {
+		CharselectLimit = std::stoi(value);
+	}
+	if (const char* value = configIni.GetValue("FPS", "Loading")) {
+		LoadingLimit = std::stoi(value);
+	}
+#ifdef _DEBUG
+	printf("Configuration file loaded: %ls\n", ConfigPath.c_str());
+	printf("ForegroundLimit: %d\n", ForegroundLimit);
+	printf("CharselectLimit: %d\n", CharselectLimit);
+	printf("LoadingLimit: %d\n", LoadingLimit);
+#endif
+	Loaded = true;
+}
+
+bool PluginConfig::IsLoaded() const
+{
+	return Loaded;
 }

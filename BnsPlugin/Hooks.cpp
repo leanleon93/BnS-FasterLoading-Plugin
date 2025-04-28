@@ -1,8 +1,8 @@
 #include "Hooks.h"
 #include "PluginConfig.h"
+#include <unordered_map>
 #include <iostream>
 
-extern PluginConfig* pluginConfig;
 int32_t focusState = 1; //game focused or not
 uint64_t focusUnfocusAddr;
 
@@ -16,17 +16,17 @@ void __fastcall hkSetForegroundFpsLimit(int64_t* arg1, int32_t arg2) {
 #ifdef _DEBUG
 	auto foregroundPtr = (uint32_t*)(focusUnfocusAddr + 0x144);
 	printf("Address of the foregroundFps limit: %p\n", (void*)foregroundPtr);
-	std::wcout << L"setting all fps limits to: " << *foregroundPtr << std::endl;
+	std::cout << "setting all fps limits to: " << *foregroundPtr << std::endl;
 #endif // _DEBUG
 #ifdef _DEBUG
-	std::wcout << L"fps limits reset" << std::endl;
+	std::cout << "fps limits reset" << std::endl;
 #endif // _DEBUG
 	auto fpsLimit = arg2;
-	if (pluginConfig->ForegroundLimit > -1) {
+	if (g_PluginConfig.ForegroundLimit > -1) {
 #ifdef _DEBUG
-		std::wcout << L"found config override foreground limit: " << pluginConfig->ForegroundLimit << std::endl;
+		std::cout << "found config override foreground limit: " << g_PluginConfig.ForegroundLimit << std::endl;
 #endif // _DEBUG
-		fpsLimit = pluginConfig->ForegroundLimit;
+		fpsLimit = g_PluginConfig.ForegroundLimit;
 	}
 	return oSetForegroundFpsLimit(arg1, fpsLimit);
 }
@@ -81,21 +81,34 @@ static void SetAndApplyFpsLimits(uint32_t limit, bool unfocus) {
 		}
 #ifdef _DEBUG
 		printf("Address of the foregroundFps limit: %p\n", (void*)foregroundPtr);
-		std::wcout << L"setting all fps limits to: " << *foregroundPtr << std::endl;
+		std::cout << "setting all fps limits to: " << *foregroundPtr << std::endl;
 #endif // _DEBUG
 	}
 }
-
+#ifdef _BNSLIVE 
+bool applyLowFpsToNextLoadingScreen = false; //previous loading screen was char select
+#endif
 static void SetAndApplyFpsLimits(uint32_t limit) {
 	SetAndApplyFpsLimits(limit, false);
 }
 static void SetAndApplyUnlimitedFps() {
-	SetAndApplyFpsLimits(0);
+#ifdef _BNSLIVE 
+	if (applyLowFpsToNextLoadingScreen) { //if previous loading screen was char select also apply low fps to login
+		SetAndApplyFpsLimits(g_PluginConfig.CharselectLimit, true);
+	}
+	else {
+		SetAndApplyFpsLimits(g_PluginConfig.LoadingLimit);
+	}
+	applyLowFpsToNextLoadingScreen = false;
+#else
+	SetAndApplyFpsLimits(g_PluginConfig.LoadingLimit);
+#endif
 }
 
 #ifdef _BNSLIVE 
 static void SetAndApplyLowFps() {
 	SetAndApplyFpsLimits(5, true);
+	applyLowFpsToNextLoadingScreen = true;
 }
 static void SetInTransitFps(const World* world) {
 	if (world->_leaveReason == 1 && world->_geozoneId == 0) {
@@ -155,12 +168,12 @@ World* __fastcall hkBNSClient_GetWorld() {
 #ifdef _DEBUG
 		if (prevWorld && world) {
 			if (*prevWorld != *world) {
-				std::cout << "World: " << *world << std::endl;
+				//std::cout << "World: " << *world << std::endl;
 				*prevWorld = *world;
 			}
 		}
 		else {
-			std::cout << "World: " << *world << std::endl;
+			//std::cout << "World: " << *world << std::endl;
 			if (prevWorld == nullptr)
 				prevWorld = new World();
 			*prevWorld = *world;
@@ -182,8 +195,52 @@ void __fastcall hkFocusUnfocus(uint64_t * arg1, uint32_t focus) {
 	focusUnfocusAddr = (int64_t)arg1;
 
 #ifdef _DEBUG
-	std::wcout << L"focus: " << focus << std::endl;
+	std::cout << "focus: " << focus << std::endl;
 #endif // _DEBUG
 
 	return oFocusUnfocus(arg1, focus);
+}
+
+template <typename Callable>
+void handleKeyEventWithModifiers(
+	EInputKeyEvent const* InputKeyEvent,
+	int vKeyTarget,
+	bool alt,
+	bool shift,
+	bool ctrl,
+	const Callable & onPress
+) {
+	static std::unordered_map<int, bool> toggleKeys;
+	if (vKeyTarget == 0)  return;
+	if (InputKeyEvent->_vKey == vKeyTarget) {
+		bool& toggleKey = toggleKeys[vKeyTarget];
+		if (!toggleKey && InputKeyEvent->KeyState == EngineKeyStateType::EKS_PRESSED) {
+			// Check for Alt, Shift, and Ctrl modifiers
+			if ((alt == InputKeyEvent->bAltPressed) &&
+				(shift == InputKeyEvent->bShiftPressed) &&
+				(ctrl == InputKeyEvent->bCtrlPressed)) {
+				toggleKey = true;
+				onPress();
+			}
+		}
+		else if (toggleKey && InputKeyEvent->KeyState == EngineKeyStateType::EKS_RELEASED) {
+			toggleKey = false;
+		}
+	}
+}
+extern _AddInstantNotification oAddInstantNotification;
+bool(__fastcall * oBUIWorld_ProcessEvent)(uintptr_t * This, EInputKeyEvent * InputKeyEvent);
+bool __fastcall hkBUIWorld_ProcessEvent(uintptr_t * This, EInputKeyEvent * InputKeyEvent) {
+	if (!InputKeyEvent)
+		return false;
+	if (!g_PluginConfig.IsLoaded()) return oBUIWorld_ProcessEvent(This, InputKeyEvent);
+	if (InputKeyEvent->vfptr->Id(InputKeyEvent) == 2) {
+		handleKeyEventWithModifiers(InputKeyEvent, 0x50, true, true, false, []() {
+			g_PluginConfig.ReloadFromConfig();
+			auto message = LR"(FPS Plugin Config Reloaded)";
+			auto gameWorld = BNSClient_GetWorld();
+			BSMessaging::DisplaySystemChatMessage(gameWorld, &oAddInstantNotification, message, false);
+			});
+	}
+	return oBUIWorld_ProcessEvent(This, InputKeyEvent);
 }
